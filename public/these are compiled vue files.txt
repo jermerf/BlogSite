@@ -1,0 +1,1 @@
+From when you choose build on a vue project, the output is placed in the dist folder, but here they're just hosted from the public folder

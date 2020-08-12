@@ -1,55 +1,70 @@
 const Router = require('express').Router
-const bcrypt = require('bcrypt')
-const dbPromise = require('./mongo')
+const User = require('./model/User.js')
 
-var router = Router()
-var db = null
+const router = Router()
 
-dbPromise.then(database => {
-  db = database
-})
+const LOGIN_FAIL = { success: false, message: "Incorrect credentials" }
+const REGISTER_FAIL = { success: false, message: "Username taken" }
 
-function hash(password) {
-  const salt = bcrypt.genSaltSync(10)
-  return bcrypt.hashSync(password, salt)
-}
+router.post('/register', async (req, res) => {
+  let { username, password } = req.body // pulls out req.body.username and req.body.password
 
-router.post('/register', (req, res) => {
-  var {username, password} = req.body
+  try {
+    let user = new User({
+      username,
+      lastLogin: new Date()
+    })
+    user.setPassword(password) // This is a method in the schema, it hashes the password
+    await user.save()
 
-  var hashPass = hash(password)
-  console.log("HASH: " + hashPass)
-
-  //Register, usually in a database
-  var responseData = {
-    success: false
+    loginSuccess(req, res, user)
+  } catch (err) {
+    console.log("/register_ERR", err)
+    res.send(REGISTER_FAIL)
   }
-
-  res.session.username = username
-  loginSuccess(username)
-  res.send(responseData)
 })
 
-router.post('/login', (req, res) => {
-  var {username, password} = req.body
-  var currentUser = users.find(user => user.username === username)
-  var failMessage = "Incorrect credentials"
-  if(currentUser) {
-    if(currentUser.password === password){
+router.post('/login', async (req, res) => {
+  let { username, password } = req.body
+
+  try {
+    let user = await User.find({ username })
+
+    if (user.authenticate(password)) {
+
       //Login complete
-      res.session.username = username
-      loginSuccess(username)
-      res.send("Login completed successfully")
+      loginSuccess(req, res, user)
     } else {
-      res.send(failMessage)
+      res.send(LOGIN_FAIL)
     }
-  }else{
-    res.send(failMessage)
+  } catch (err) {
+    res.send(LOGIN_FAIL)
   }
 })
 
-function loginSuccess(username){
+router.post('/check', async (req, res) => {
+  // If you have a username and uid in the session, you're logged in
+  if (req.session.username && req.session.uid) {
+    res.send({
+      success: true,
+      userid: req.session.id,
+      username: req.session.username
+    })
+  } else {
+    res.send({ success: false })
+  }
+})
 
+function loginSuccess(req, res, user) {
+
+  // Save the username and id to session, this lets you check to see who this user is
+  req.session.uid = user.id
+  req.session.username = user.username
+  res.send({
+    success: true,
+    userid: user.id,
+    username: user.username
+  })
 }
 
 module.exports = router
