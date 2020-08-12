@@ -10,7 +10,7 @@ router.post('/register', async (req, res) => {
   let { username, password } = req.body // pulls out req.body.username and req.body.password
 
   try {
-    let user = new User({
+    let user = await new User({
       username,
       lastLogin: new Date()
     })
