@@ -10,16 +10,12 @@ router.post('/register', async (req, res) => {
   let { username, password } = req.body // pulls out req.body.username and req.body.password
 
   try {
-    let user = await new User({
-      username,
-      lastLogin: new Date()
-    })
+    let user = await new User({ username })
     user.setPassword(password) // This is a method in the schema, it hashes the password
     await user.save()
 
     loginSuccess(req, res, user)
   } catch (err) {
-    console.log("/register_ERR", err)
     res.send(REGISTER_FAIL)
   }
 })
@@ -56,7 +52,6 @@ router.post('/check', async (req, res) => {
 })
 
 function loginSuccess(req, res, user) {
-
   // Save the username and id to session, this lets you check to see who this user is
   req.session.uid = user.id
   req.session.username = user.username
@@ -65,6 +60,8 @@ function loginSuccess(req, res, user) {
     userid: user.id,
     username: user.username
   })
+  user.lastLogin = new Date()
+  user.save()
 }
 
 module.exports = router
